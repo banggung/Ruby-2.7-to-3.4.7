@@ -77,7 +77,7 @@ echo "3.4.7" > .ruby-version
 ### Update Gemfile
 ```ruby
 # Change Ruby version
-ruby '3.4.7'
+sed -i "s/ruby '[0-9.]*'/ruby '3.4.7'/" Gemfile
 ```
 
 ---

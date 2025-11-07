@@ -53,7 +53,10 @@ source ~/.bashrc
 ## Step 3: Install Ruby 3.4.7
 
 ```bash
+# install 3.4.7
 rbenv install 3.4.7
+
+# run global
 rbenv global 3.4.7
 
 # Verify installation

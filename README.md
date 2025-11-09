@@ -1,4 +1,4 @@
-# Ruby 2.7 to 3.4.7 Upgrade Guide
+# Ruby 2.7 to 3.4.7 Upgrade Guide (at Graviton EC2 instance)
 
 This guide documents the complete process of upgrading a Rails application from Ruby 2.7 to Ruby 3.4.7 on Amazon Linux 2023 (ARM64/Graviton).
 
@@ -28,7 +28,7 @@ This guide documents the complete process of upgrading a Rails application from 
 
 ```bash
 sudo dnf install -y gcc make openssl-devel zlib-devel readline-devel \
-  libffi-devel libyaml-devel bzip2
+  libffi-devel libyaml-devel bzip2 gcc-c++ postgresql-devel
 ```
 
 ---
@@ -125,14 +125,162 @@ echo "gem 'aws-sdk-ses'" >> Gemfile
 
 ## Step 8: Install Dependencies
 
+clear dependency conflicts:
+```bash
+bundle update
+```
+update output logs
+```text
+$ bundle update
+[DEPRECATED] Platform :mingw, :mswin, :x64_mingw is deprecated. Please use platform :windows instead.
+[DEPRECATED] Found x64-mingw32 in lockfile, which is deprecated. Using x64-mingw-ucrt, the replacement for x64-mingw32 in modern rubies, instead. Support for x64-mingw32 will be removed in Bundler 4.0.
+Fetching gem metadata from https://rubygems.org/.........
+Resolving dependencies...
+Using rake 13.3.1 (was 13.0.6)
+Using concurrent-ruby 1.3.5 (was 1.2.2)
+Using minitest 5.26.1 (was 5.18.0)
+Using builder 3.3.0 (was 3.2.4)
+Using erubi 1.13.1 (was 1.12.0)
+Using mini_portile2 2.8.9 (was 2.8.1)
+Using racc 1.8.1 (was 1.6.2)
+Using rack 2.2.21 (was 2.2.6.4)
+Using nio4r 2.7.5 (was 2.5.9)
+Using zeitwerk 2.7.3 (was 2.6.7)
+Using timeout 0.4.4 (was 0.3.1)
+Using marcel 1.0.4 (was 1.0.2)
+Using mini_mime 1.1.5 (was 1.1.2)
+Using date 3.5.0 (was 3.3.3)
+Using rgeo 3.0.1 (was 2.4.0)
+Using public_suffix 6.0.2 (was 5.0.1)
+Using ast 2.4.3 (was 2.4.2)
+Using execjs 2.10.0 (was 2.7.0)
+Using aws-eventstream 1.4.0 (was 1.2.0)
+Using aws-partitions 1.1181.0 (was 1.714.0)
+Using thor 1.4.0 (was 1.2.1)
+Using bcrypt 3.1.20 (was 3.1.18)
+Using msgpack 1.8.0 (was 1.6.0)
+Using ffi 1.17.2 (was 1.15.5)
+Using byebug 12.0.0 (was 11.1.3)
+Using matrix 0.4.3 (was 0.4.2)
+Using regexp_parser 2.11.3 (was 2.8.0)
+Using ssrf_filter 1.3.0 (was 1.1.1)
+Using chartkick 5.2.1 (was 3.4.2)
+Using rexml 3.4.4 (was 3.2.5)
+Using diff-lcs 1.6.2 (was 1.5.0)
+Using dotenv 3.1.8 (was 2.8.1)
+Using multi_json 1.17.0 (was 1.15.0)
+Using fabrication 3.0.0 (was 2.30.0)
+Using mime-types-data 3.2025.0924 (was 3.2022.0105)
+Using hashdiff 1.2.1 (was 1.0.1)
+Using method_source 1.1.0 (was 1.0.0)
+Using newrelic_rpm 9.22.0 (was 8.15.0)
+Using parallel 1.27.0 (was 1.23.0)
+Using rspec-support 3.13.6 (was 3.11.1)
+Using rubyzip 3.2.2 (was 2.3.2)
+Using tilt 2.6.1 (was 2.0.11)
+Using spring 4.4.0 (was 4.1.0)
+Using i18n 1.14.7 (was 1.12.0)
+Using tzinfo 2.0.6 (was 1.2.11)
+Using mini_magick 5.3.1 (was 4.12.0)
+Using excon 1.3.1 (was 0.93.0)
+Using nokogiri 1.18.10 (was 1.14.3)
+Using rack-test 2.2.0 (was 2.0.2)
+Using request_store 1.7.0 (was 1.5.1)
+Using sprockets 3.7.5 (was 3.7.2)
+Using websocket-driver 0.8.0 (was 0.7.5)
+Using puma 7.1.0 (was 6.4.0)
+Using net-protocol 0.2.2 (was 0.2.1)
+Using addressable 2.8.7 (was 2.8.1)
+Using parser 3.3.10.0 (was 3.2.2.1)
+Using autoprefixer-rails 10.4.21.0 (was 10.2.4.0)
+Using uglifier 4.2.1 (was 4.2.0)
+Using aws-sigv4 1.12.1 (was 1.5.2)
+Using bootsnap 1.18.6 (was 1.15.0)
+Using ruby-vips 2.2.5 (was 2.1.4)
+Using rb-inotify 0.11.1 (was 0.10.1)
+Using crack 1.0.1 (was 0.4.5)
+Using elasticsearch-api 8.19.2 (was 7.17.1)
+Using mime-types 3.7.0 (was 3.4.1)
+Using pry 0.15.2 (was 0.14.1)
+Using rspec-core 3.13.6 (was 3.11.0)
+Using rspec-expectations 3.13.5 (was 3.11.0)
+Using rspec-mocks 3.13.7 (was 3.11.1)
+Using unicode-display_width 3.2.0 (was 2.4.2)
+Using activesupport 7.1.6 (was 6.0.6.1)
+Using loofah 2.24.1 (was 2.19.1)
+Using net-imap 0.5.12 (was 0.3.4)
+Using net-smtp 0.5.1 (was 0.3.3)
+Using launchy 3.1.1 (was 2.5.0)
+Using rubocop-ast 1.48.0 (was 1.28.1)
+Using aws-sdk-core 3.236.0 (was 3.170.0)
+Using formatador 1.2.2 (was 1.1.0)
+Using image_processing 1.14.0 (was 1.12.2)
+Using listen 3.9.0 (was 3.8.0)
+Using webmock 3.26.1 (was 3.18.1)
+Using faraday-net_http 3.4.2 (was 1.0.1)
+Using pry-byebug 3.11.0 (was 3.10.1)
+Using pry-rails 0.3.11 (was 0.3.9)
+Using rspec-its 2.0.0 (was 1.3.0)
+Using rails-dom-testing 2.3.0 (was 2.0.3)
+Using globalid 1.3.0 (was 1.0.1)
+Using activemodel 7.1.6 (was 6.0.6.1)
+Using delayed_job 4.1.13 (was 4.1.11)
+Using rails-html-sanitizer 1.6.2 (was 1.5.0)
+Using capybara 3.40.0 (was 3.38.0)
+Using mail 2.9.0 (was 2.8.0.1)
+Using rubocop 1.81.7 (was 1.51.0)
+Using aws-sdk-elasticbeanstalk 1.95.0 (was 1.52.0)
+Using aws-sdk-kms 1.117.0 (was 1.61.0)
+Using fog-core 2.6.0 (was 2.3.0)
+Using faraday 2.14.0 (was 1.10.1)
+Using activejob 7.1.6 (was 6.0.6.1)
+Using activerecord 7.1.6 (was 6.0.6.1)
+Using activemodel-serializers-xml 1.0.3 (was 1.0.2)
+Using carrierwave 2.2.6 (was 2.2.3)
+Using actionview 7.1.6 (was 6.0.6.1)
+Using email_spec 2.3.0 (was 2.2.0)
+Using rubocop-performance 1.26.1 (was 1.16.0)
+Using rubocop-rails 2.33.4 (was 2.19.1)
+Using rubocop-rspec 3.7.0 (was 2.17.0)
+Using aws-sdk-s3 1.203.0 (was 1.117.2)
+Using fog-xml 0.1.5 (was 0.1.4)
+Using rgeo-activerecord 7.0.1 (was 6.2.2)
+Using database_cleaner-active_record 2.2.2 (was 2.0.1)
+Using delayed_job_active_record 4.1.11 (was 4.1.7)
+Using actionpack 7.1.6 (was 6.0.6.1)
+Using jbuilder 2.14.1 (was 2.11.5)
+Using elasticsearch 8.19.2 (was 7.17.1)
+Using activerecord-postgis-adapter 9.0.2 (was 6.0.3)
+Using database_cleaner 2.1.0 (was 2.0.1)
+Using actioncable 7.1.6 (was 6.0.6.1)
+Using activestorage 7.1.6 (was 6.0.6.1)
+Using actionmailer 7.1.6 (was 6.0.6.1)
+Using railties 7.1.6 (was 6.0.6.1)
+Using draper 4.0.4 (was 4.0.2)
+Using has_scope 0.8.2 (was 0.8.0)
+Using sprockets-rails 3.5.2 (was 3.4.2)
+Using simple_form 5.4.0 (was 5.1.0)
+Using elasticsearch-model 8.0.1 (was 7.2.1)
+Using actionmailbox 7.1.6 (was 6.0.6.1)
+Using actiontext 7.1.6 (was 6.0.6.1)
+Using aws-sdk-rails 5.1.0 (was 3.7.1)
+Using responders 3.2.0 (was 3.0.1)
+Using dotenv-rails 3.1.8 (was 2.8.1)
+Using jquery-rails 4.6.1 (was 4.5.1)
+Using lograge 0.14.0 (was 0.12.0)
+Using turbo-rails 1.5.0 (was 1.1.1)
+Using rspec-rails 7.1.1 (was 5.1.2)
+Using rails 7.1.6 (was 6.0.6.1)
+Using devise 4.9.4 (was 4.8.1)
+Using devise-i18n 1.15.0 (was 1.10.2)
+Installing pg 1.6.2 (was 1.4.5) with native extensions
+Bundle updated!
+```
+
+bundle install
 ```bash
 gem install bundler
 bundle install
-```
-
-If you encounter dependency conflicts:
-```bash
-bundle update
 ```
 
 ---
@@ -171,9 +319,20 @@ production:
   pool: 5
 ```
 
-Set environment variable:
+compatibility clean-up
 ```bash
-export DATABASE_PASSWORD='your_password'
+sed -i 's/cache_format_version = 6.1/cache_format_version = 7.0/' config/environments/development.rb
+
+
+```
+
+Set environment variable:
+```shell
+export DATABASE_HOST='safecastapi-graviton-test.c7usmqsmih2u.ap-northeast-1.rds.amazonaws.com'
+export DATABASE_NAME_DEVELOPMENT='safecast'
+export DATABASE_POSTGRESQL_USERNAME='your-username'
+export DATABASE_POSTGRESQL_PASSWORD='your-password'
+
 echo "export DATABASE_PASSWORD='your_password'" >> ~/.bashrc
 ```
 
@@ -193,6 +352,28 @@ bundle exec rspec
 
 ```bash
 bundle exec rails server -b 0.0.0.0 -p 3000
+```
+
+output logs
+```text
+$ bundle exec rails server -b 0.0.0.0 -p 3000
+=> Booting Puma
+=> Rails 7.1.6 application starting in development
+=> Run `bin/rails server --help` for more startup options
+DEPRECATION WARNING: Support for `config.active_support.cache_format_version = 6.1` has been deprecated and will be removed in Rails 7.2.
+
+Check the Rails upgrade guide at https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#new-activesupport-cache-serialization-format
+for more information on how to upgrade.
+ (called from <main> at /home/ec2-user/safecastapi/config/environment.rb:7)
+Puma starting in single mode...
+* Puma version: 7.1.0 ("Neon Witch")
+* Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux]
+*  Min threads: 5
+*  Max threads: 5
+*  Environment: development
+*          PID: 202674
+* Listening on http://0.0.0.0:3000
+Use Ctrl-C to stop
 ```
 
 For production:

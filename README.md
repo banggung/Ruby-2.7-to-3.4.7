@@ -24,19 +24,19 @@ This guide documents the complete process of upgrading a Rails application from 
 
 ---
 
-## Step 0: Install safecastapi
+## Step 0: Install System Dependencies
 
 ```bash
-git clone https://github.com/Safecast/safecastapi.git
+sudo dnf install -y gcc make openssl-devel zlib-devel readline-devel \
+  libffi-devel libyaml-devel bzip2 gcc-c++ postgresql-devel git
 ```
 
 ---
 
-## Step 1: Install System Dependencies
+## Step 1: Install safecastapi
 
 ```bash
-sudo dnf install -y gcc make openssl-devel zlib-devel readline-devel \
-  libffi-devel libyaml-devel bzip2 gcc-c++ postgresql-devel
+git clone https://github.com/Safecast/safecastapi.git
 ```
 
 ---
@@ -95,12 +95,16 @@ sed -i "s/ruby '[0-9.]*'/ruby '3.4.7'/" Gemfile
 Ruby 3.4 removed several gems from the default bundle. Add these to your Gemfile:
 
 ```ruby
+cat >> Gemfile << 'EOF'
+
+# add additional gems for Ruby 3.4.x
 gem 'mutex_m'
 gem 'ostruct'
 gem 'bigdecimal'
 gem 'drb'
 gem 'logger'
 gem 'csv'
+EOF
 ```
 
 ---
@@ -288,6 +292,7 @@ Bundle updated!
 bundle install
 ```bash
 gem install bundler
+gem update --system 3.7.2
 bundle install
 ```
 

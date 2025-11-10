@@ -24,6 +24,14 @@ This guide documents the complete process of upgrading a Rails application from 
 
 ---
 
+## Step 0: Install safecastapi
+
+```bash
+git clone https://github.com/Safecast/safecastapi.git
+```
+
+---
+
 ## Step 1: Install System Dependencies
 
 ```bash

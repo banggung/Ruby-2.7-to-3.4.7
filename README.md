@@ -394,6 +394,43 @@ For production:
 RAILS_ENV=production bundle exec rails server -b 0.0.0.0 -p 3000
 ```
 
+## One more thing
+
+Log Rotation service for preventing storage full
+
+```bash
+sudo nano /etc/logrotate.d/safecastapi
+```
+
+Add this:
+```bash
+/home/ec2-user/safecastapi/log/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    copytruncate
+    su ec2-user ec2-user
+}
+```
+
+Explanation:
+ - daily - Rotate logs daily
+ - missingok - Don't error if log file is missing
+ - rotate 14 - Keep 14 days of logs
+ - compress - Compress old logs with gzip
+ - delaycompress - Don't compress the most recent rotated log
+ - notifempty - Don't rotate if log is empty
+ - copytruncate - Copy log then truncate (keeps Rails writing to same file)
+ - su ec2-user ec2-user - Run as ec2-user
+
+Test it:
+```bash
+sudo logrotate -d /etc/logrotate.d/safecastapi
+```
+
 ---
 
 ## Common Issues and Solutions

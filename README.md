@@ -104,6 +104,7 @@ gem 'bigdecimal'
 gem 'drb'
 gem 'logger'
 gem 'csv'
+gem 'multi_json', '~> 1.15'
 EOF
 ```
 
@@ -316,37 +317,214 @@ Aws::Rails.add_action_mailer_delivery_method(:aws_sdk, region: 'us-west-2')
 
 ---
 
-## Step 10: Update Database Configuration
+## Step 10: Update AL2023 Related Configuration
+
+Edit `.ebextensions/00-expand-root-disk.config`:
+
+```diff
+---
+- Resources:
+-   AWSEBAutoScalingLaunchConfiguration:
+-     Type: AWS::AutoScaling::LaunchConfiguration
+-     Properties:
+-       BlockDeviceMappings:
+-         - DeviceName: /dev/xvda
+-           Ebs:
+-             VolumeSize:
+-               32
++ option_settings:
++   aws:autoscaling:launchconfiguration:
++     RootVolumeSize: 32
+```
+
+Edit `.ebextensions/postgresql.config`:
+```diff
+- commands:
+-   install_postgres11:
+-     command: amazon-linux-extras install postgresql11 -y
++ packages:
++   yum:
++     postgresql15: []
++     libpq-devel: []
+
+ files:
+   "/etc/profile.d/z_psql.sh":
+     content: |
+       DATABASE_HOST=$(/opt/elasticbeanstalk/bin/get-config environment | jq -r 'with_entries(select(.key == "DATABASE_HOST")) | .[]')
+       DATABASE_PASSWORD=$(/opt/elasticbeanstalk/bin/get-config environment | jq -r 'with_entries(select(.key == "DATABASE_PASSWORD")) | .[]')
+
+       export PGHOST="${DATABASE_HOST}"
+       export PGPORT=5432
+       export PGDATABASE=safecast
+       export PGUSER=safecast
+       export PGOPTIONS=--search_path=public,postgis
+
+       cat > ~/.pgpass <<EOF
+       ${DATABASE_HOST}:5432:safecast:safecast:${DATABASE_PASSWORD}
+       EOF
+       chmod 600 ~/.pgpass
+```
+
+Rename `.ebextensions/cloudwatch.config` to `.ebextensions/cloudwatch.config`:
+```diff
+- packages:
+-   yum:
+-     awslogs: []
+- 
+- files:
+-   "/etc/awslogs/awscli.conf" :
+-     mode: "000600"
+-     owner: root
+-     group: root
+-     content: |
+-       [plugins]
+-       cwlogs = cwlogs
+-       [default]
+-       region = `{"Ref":"AWS::Region"}`
+- 
+-   "/etc/awslogs/awslogs.conf" :
+-     mode: "000600"
+-     owner: root
+-     group: root
+-     content: |
+-       [general]
+-       state_file = /var/lib/awslogs/agent-state
+- 
+-   "/etc/awslogs/config/logs.conf" :
+-     mode: "000600"
+-     owner: root
+-     group: root
+-     content: |
+-       [/var/log/messages]
+-       log_group_name = `{"Fn::Join":["/", ["/aws/elasticbeanstalk", { "Ref":"AWSEBEnvironmentName" }, "var/app/current/log/production.log"]]}`
+-       log_stream_name = {instance_id}
+-       file = /var/app/current/log/production.log
+- 
+- commands:
+-   "01":
+-     command: systemctl enable awslogsd.service
+-   "02":
+-     command: systemctl restart awslogsd
++ option_settings:
++   aws:elasticbeanstalk:cloudwatch:logs:
++     StreamLogs: true
++     DeleteOnTerminate: false
++     RetentionInDays: 7
+```
+
+Edit `.ebextensions/tools.config`:
+```diff
+ packages:
+   yum:
+     htop: []
+     ImageMagick: []
+     sysstat: []
++    iftop: []
+- 
+- commands:
+-   enable_epel:
+-     command: amazon-linux-extras install epel -y
+-   install_iftop:
+-     command: yum -y install iftop
+```
+
+Edit `.ebextensions/web.config`:
+```diff
+- option_settings:
+-   - namespace: aws:elb:policies
+-     option_name: ConnectionSettingIdleTimeout
+-     value: 600
+- 
+ commands:
+   match_nginx_timeout_to_elb_timeout:
+     command: |
+       # If web tier (no sqs config) set nginx timeout to ELB timeout
+       if ! /opt/elasticbeanstalk/bin/get-config meta -k sqsdconfig 2>/dev/null; then
+         echo "proxy_read_timeout 600s;" > /etc/nginx/conf.d/web.conf
+-        service nginx restart
++        systemctl restart nginx || true
+       fi
+```
+
+Edit `.ebextensions/yarn.config`:
+```diff
+- packages:
+-   rpm:
+-     nodesource: https://rpm.nodesource.com/pub_10.x/el/7/x86_64/nodesource-release-el7-1.noarch.rpm
+-   yum:
+-     nodejs: []
+- 
+ commands:
+-   install_yarn:
+-     command: npm install --global yarn
++   01_install_node:
++     command: dnf install -y nodejs
+```
+
+Edit `config/application.rb`:
+```diff
+ ...
+ module Safecast
+   class Application < Rails::Application
+     # Initialize configuration defaults for originally generated Rails version.
+     config.load_defaults 5.2
++    config.active_support.cache_format_version = 7.1
+     config.action_mailer.delivery_job = 'ActionMailer::MailDeliveryJob' # default 6.0
+     config.active_record.belongs_to_required_by_default = false
+     config.autoloader = :zeitwerk
+...
+```
 
 Edit `config/database.yml`:
+```diff
+ default: &default
+   username: safecast
+   password:
+   adapter: postgis
+   encoding: unicode
+   host: <%= ENV.fetch('DATABASE_HOST', 'localhost') %>
+-  pool: 5
++  pool: 62
+   port: 5432
+   postgis_extension: postgis
+   postgis_schema: postgis
+   schema_search_path: public,postgis
+   su_password:
+   su_username: safecast
+   timeout: 5000
++  variables:
++    statement_timeout: '40s'
+```
 
-```yaml
-production:
-  adapter: postgresql
-  encoding: unicode
-  database: your_database
-  username: your_username
-  password: <%= ENV['DATABASE_PASSWORD'] %>
-  host: your-rds-endpoint.rds.amazonaws.com
-  port: 5432
-  pool: 5
+Edit `app/models/ingest_measurement.rb`:
+```diff
+...
+  class IngestMeasurement # rubocop:disable Metrics/ClassLength
+   extend ActiveModel::Naming
+   include Elasticsearch::Model
+
+   index_name 'ingest-measurements-*'
+-  document_type '_doc'
+
+   class << self # rubocop:disable Metrics/ClassLength
+     def data_for(query)
+       search(query: query).results.map(&:_source)
+     end
+...
+```
+
+Create `config/initializers/multi_json_fix.rb`:
+```diff
++ module MultiJson
++   def self.decode(string, options = {})
++     load(string, options)
++   end
++ end
 ```
 
 compatibility clean-up
 ```bash
 sed -i 's/cache_format_version = 6.1/cache_format_version = 7.0/' config/environments/development.rb
-
-
-```
-
-Set environment variable:
-```shell
-export DATABASE_HOST='safecastapi-graviton-test.c7usmqsmih2u.ap-northeast-1.rds.amazonaws.com'
-export DATABASE_NAME_DEVELOPMENT='safecast'
-export DATABASE_POSTGRESQL_USERNAME='your-username'
-export DATABASE_POSTGRESQL_PASSWORD='your-password'
-
-echo "export DATABASE_PASSWORD='your_password'" >> ~/.bashrc
 ```
 
 ---
